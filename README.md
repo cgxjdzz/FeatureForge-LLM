@@ -53,6 +53,9 @@ suggestions = pipeline.ask_for_feature_suggestions(
 
 # Implement all suggested features
 result_df = pipeline.implement_all_suggestions(train_data)
+
+# Implement transformations to test data 
+test_result_df = pipeline.apply_saved_transformations(test_data)
 ```
 
 ## Advanced Usage
