@@ -1,5 +1,5 @@
 """
-主要协调类，精简的LLMFeaturePipeline
+Main Coordination Class, Streamlined LLMFeaturePipeline
 """
 import time
 import os
@@ -16,37 +16,37 @@ from ..data.feature_implementer import FeatureImplementer
 
 class LLMFeaturePipeline:
     """
-    LLM驱动的特征工程管道，实现询问建议-获得建议-实施代码-获得新特征的全流程
+    LLM-driven Feature Engineering Pipeline, Implementing Full Workflow of Asking Suggestions - Obtaining Suggestions - Implementing Code - Obtaining New Features
     """
     
     def __init__(self, llm_api_key: str, model: str = "gpt-4", verbose: bool = True, provider: str = "openai"):
         """
-        初始化LLM特征工程管道
+        Initialize LLM Feature Engineering Pipeline
         
-        参数:
-            llm_api_key: LLM API密钥
-            model: 使用的LLM模型
-            verbose: 是否打印详细信息
-            provider: LLM提供商，支持"openai"或"gemini"
+        Parameters:
+            llm_api_key: LLM API key
+            model: LLM model to use
+            verbose: Whether to print detailed information
+            provider: LLM provider, supports "openai" or "gemini"
         """
         self.verbose = verbose
         
-        # 创建LLM提供者
+        # Create LLM provider
         try:
             self.llm_provider = create_provider_instance(provider, llm_api_key, model, verbose)
         except Exception as e:
             if self.verbose:
-                print(f"⚠️ 初始化LLM提供者失败: {e}")
+                print(f"⚠️ Failed to initialize LLM provider: {e}")
             self.llm_provider = None
         
-        # 创建核心组件
+        # Create core components
         self.json_parser = JsonParser(verbose=verbose)
         self.code_parser = CodeParser(verbose=verbose)
         self.data_analyzer = DataAnalyzer(verbose=verbose)
         self.code_executor = CodeExecutor(verbose=verbose)
         self.feature_implementer = FeatureImplementer(self.llm_provider, self.code_executor, verbose=verbose)
         
-        # 初始化状态
+        # Initialize state
         self.feature_suggestions = []
         self.implemented_features = {}
         self.execution_history = []
@@ -58,29 +58,29 @@ class LLMFeaturePipeline:
                                   dataset_background: Optional[str] = None,
                                   custom_prompt: Optional[str] = None) -> List[Dict[str, Any]]:
         """
-        询问LLM提供特征工程建议
+        Ask LLM for Feature Engineering Suggestions
         
-        参数:
-            df: 输入数据帧
-            task_description: 任务描述
-            target_column: 目标列名称
-            dataset_background: 数据集背景信息，帮助模型理解数据
-            custom_prompt: 自定义提示（如果需要）
+        Parameters:
+            df: Input dataframe
+            task_description: Task description
+            target_column: Target column name
+            dataset_background: Dataset background information to help the model understand the data
+            custom_prompt: Custom prompt (if needed)
             
-        返回:
-            特征工程建议列表
+        Returns:
+            List of feature engineering suggestions
         """
         if not self.llm_provider:
             if self.verbose:
-                print("❌ LLM提供者未初始化，无法请求建议")
+                print("❌ LLM provider not initialized, cannot request suggestions")
             return []
             
-        # 准备数据帧信息
+        # Prepare dataframe information
         df_info = self.data_analyzer.get_dataframe_info(df)
         data_sample = df.head(3).to_dict() if df.shape[0] > 0 else {}
         
-        system_message = """你是一位专业的特征工程专家，擅长发现数据中的模式和创建有价值的特征。
-请提供具体、可执行的特征工程建议。以JSON格式回复。"""
+        system_message = """You are a professional feature engineering expert, skilled at discovering patterns in data and creating valuable features.
+Please provide specific, executable feature engineering suggestions. Reply in JSON format."""
         
         if custom_prompt:
             prompt = custom_prompt
@@ -88,53 +88,53 @@ class LLMFeaturePipeline:
             background_section = ""
             if dataset_background:
                 background_section = f"""
-数据集背景：
+Dataset Background:
 {dataset_background}
 """
 
             prompt = f"""
-我有一个机器学习项目，需要你帮我进行特征工程。
+I have a machine learning project and need your help with feature engineering.
             
-任务描述：{task_description}
+Task Description: {task_description}
 
-{"目标列：" + target_column if target_column else ""}
+{"Target Column: " + target_column if target_column else ""}
 {background_section}
-数据集信息：
-- 形状：{df_info['shape']}
-- 列：{df_info['columns']}
-- 数据类型：{df_info['dtypes']}
-- 缺失值：{df_info['missing_values']}
-- 唯一值数量：{df_info['unique_values']}
+Dataset Information:
+- Shape: {df_info['shape']}
+- Columns: {df_info['columns']}
+- Data Types: {df_info['dtypes']}
+- Missing Values: {df_info['missing_values']}
+- Unique Value Counts: {df_info['unique_values']}
 
-分类特征分布：
+Categorical Feature Distributions:
 {df_info.get('categorical_distributions', {})}
 
-数值特征统计：
+Numerical Feature Statistics:
 {df_info.get('numerical_statistics', {})}
 
-数据样例：
+Data Sample:
 {data_sample}
 
-请提供5-10个有价值的特征工程建议，包括：
-1. 特征转换（如二值化、标准化、独热编码等）
-2. 特征交互（如特征组合、比率特征等）
-3. 基于领域知识的特征（如时间特征、文本特征等）
+Please provide 5-10 valuable feature engineering suggestions, including:
+1. Feature Transformations (such as binarization, standardization, one-hot encoding, etc.)
+2. Feature Interactions (such as feature combinations, ratio features, etc.)
+3. Domain Knowledge-based Features (such as time features, text features, etc.)
 
-对每个建议，请提供以下信息，以JSON数组格式返回：
+For each suggestion, please provide the following information in a JSON array format:
 [
   {{
-    "suggestion_id": "唯一标识符",
-    "suggestion_type": "转换|交互|领域知识|其他",
-    "description": "详细的建议描述",
-    "rationale": "为什么这个特征可能有价值",
-    "affected_columns": ["受影响的列"],
-    "new_features": ["新生成的特征名称"]
+    "suggestion_id": "Unique identifier",
+    "suggestion_type": "Transformation|Interaction|Domain Knowledge|Other",
+    "description": "Detailed suggestion description",
+    "rationale": "Why this feature might be valuable",
+    "affected_columns": ["Affected columns"],
+    "new_features": ["New generated feature names"]
   }},
   ...
 ]
 """
         if self.verbose:
-            print("🔍 正在询问LLM提供特征工程建议...")
+            print("🔍 Asking LLM for feature engineering suggestions...")
             
         response = self.llm_provider.call(prompt, system_message)
         
@@ -143,33 +143,33 @@ class LLMFeaturePipeline:
             if isinstance(suggestions, list):
                 self.feature_suggestions = suggestions
                 if self.verbose:
-                    print(f"✅ 收到{len(suggestions)}个特征工程建议")
+                    print(f"✅ Received {len(suggestions)} feature engineering suggestions")
                 return suggestions
             else:
                 if self.verbose:
-                    print("⚠️ LLM返回格式不正确，尝试提取建议")
+                    print("⚠️ LLM returned incorrect format, attempting to extract suggestions")
                 extracted_suggestions = self.json_parser._extract_suggestions_from_text(response)
                 self.feature_suggestions = extracted_suggestions
                 return extracted_suggestions
         except Exception as e:
             if self.verbose:
-                print(f"❌ 解析建议失败: {e}")
+                print(f"❌ Failed to parse suggestions: {e}")
             return []
-    
+
     def implement_feature_suggestion(self, df: pd.DataFrame, suggestion_id: str, 
                                     keep_original: bool = True) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
-        实现特定的特征工程建议
+        Implement a specific feature engineering suggestion
         
-        参数:
-            df: 输入数据帧
-            suggestion_id: 建议ID
-            keep_original: 是否保留原始特征
+        Parameters:
+            df: Input dataframe
+            suggestion_id: Suggestion ID
+            keep_original: Whether to keep original features
             
-        返回:
-            (更新的数据帧, 实现结果信息)
+        Returns:
+            (Updated dataframe, Implementation result information)
         """
-        # 查找对应的建议
+        # Find corresponding suggestion
         suggestion = None
         for s in self.feature_suggestions:
             if s.get("suggestion_id") == suggestion_id:
@@ -178,13 +178,13 @@ class LLMFeaturePipeline:
                 
         if not suggestion:
             if self.verbose:
-                print(f"❌ 找不到ID为{suggestion_id}的建议")
-            return df, {"status": "error", "message": f"找不到ID为{suggestion_id}的建议"}
+                print(f"❌ Cannot find suggestion with ID {suggestion_id}")
+            return df, {"status": "error", "message": f"Cannot find suggestion with ID {suggestion_id}"}
         
-        # 实现建议
+        # Implement suggestion
         result_df, impl_result = self.feature_implementer.implement_suggestion(df, suggestion, keep_original)
         
-        # 记录结果
+        # Record results
         self.implemented_features[suggestion_id] = impl_result
         self.execution_history.append(impl_result)
         
@@ -192,38 +192,38 @@ class LLMFeaturePipeline:
     
     def implement_all_suggestions(self, df: pd.DataFrame, keep_original: bool = True) -> pd.DataFrame:
         """
-        实现所有的特征工程建议
+        Implement all feature engineering suggestions
         
-        参数:
-            df: 输入数据帧
-            keep_original: 是否保留原始特征
+        Parameters:
+            df: Input dataframe
+            keep_original: Whether to keep original features
             
-        返回:
-            包含所有新特征的数据帧
+        Returns:
+            Dataframe containing all new features
         """
         return self.feature_implementer.implement_all_suggestions(df, self.feature_suggestions, keep_original)
     
     def custom_feature_request(self, df: pd.DataFrame, feature_description: str) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
-        根据自定义描述创建特征
+        Create features based on custom description
         
-        参数:
-            df: 输入数据帧
-            feature_description: 特征描述
+        Parameters:
+            df: Input dataframe
+            feature_description: Feature description
             
-        返回:
-            (更新的数据帧, 实现结果信息)
+        Returns:
+            (Updated dataframe, Implementation result information)
         """
         result_df, impl_result = self.feature_implementer.custom_feature_request(df, feature_description)
         
-        # 将自定义特征添加到建议列表中
+        # Add custom feature to suggestion list
         if impl_result["status"] == "success":
             suggestion_id = impl_result["suggestion_id"]
             suggestion = {
                 "suggestion_id": suggestion_id,
-                "suggestion_type": "自定义",
+                "suggestion_type": "Custom",
                 "description": feature_description,
-                "rationale": "用户自定义特征",
+                "rationale": "User-defined feature",
                 "implementation": impl_result["code"],
                 "affected_columns": [],
                 "new_features": impl_result["new_features"]
@@ -237,25 +237,25 @@ class LLMFeaturePipeline:
     
     def save_suggestions(self, file_path: str) -> bool:
         """
-        保存特征建议到文件
+        Save feature suggestions to file
         
-        参数:
-            file_path: 文件路径
+        Parameters:
+            file_path: File path
             
-        返回:
-            是否保存成功
+        Returns:
+            Whether saving was successful
         """
         return save_suggestions_to_file(self.feature_suggestions, file_path)
     
     def load_suggestions(self, file_path: str) -> List[Dict[str, Any]]:
         """
-        从文件加载特征建议
+        Load feature suggestions from file
         
-        参数:
-            file_path: 文件路径
+        Parameters:
+            file_path: File path
             
-        返回:
-            加载的建议列表
+        Returns:
+            List of loaded suggestions
         """
         suggestions = load_suggestions_from_file(file_path)
         if suggestions:
@@ -264,14 +264,14 @@ class LLMFeaturePipeline:
     
     def generate_report(self, original_df: pd.DataFrame, result_df: pd.DataFrame) -> Dict[str, Any]:
         """
-        生成特征工程报告
+        Generate feature engineering report
         
-        参数:
-            original_df: 原始数据帧
-            result_df: 结果数据帧
+        Parameters:
+            original_df: Original dataframe
+            result_df: Result dataframe
             
-        返回:
-            报告数据
+        Returns:
+            Report data
         """
         return generate_report(
             self.implemented_features, 
@@ -282,47 +282,47 @@ class LLMFeaturePipeline:
     
     def get_execution_time(self) -> float:
         """
-        获取执行时间（秒）
+        Get execution time (seconds)
         
-        返回:
-            执行时间
+        Returns:
+            Execution time
         """
         return time.time() - self.start_time
     
     def analyze_correlations(self, df: pd.DataFrame, target_column: Optional[str] = None) -> Dict[str, Any]:
         """
-        分析数值特征之间的相关性
+        Analyze correlations between numerical features
         
-        参数:
-            df: 输入数据帧
-            target_column: 目标列名称
+        Parameters:
+            df: Input dataframe
+            target_column: Target column name
             
-        返回:
-            相关性分析结果
+        Returns:
+            Correlation analysis results
         """
         return self.data_analyzer.analyze_correlations(df, target_column)
     
     def detect_skewed_features(self, df: pd.DataFrame) -> Dict[str, float]:
         """
-        检测高度偏斜的数值特征
+        Detect highly skewed numerical features
         
-        参数:
-            df: 输入数据帧
+        Parameters:
+            df: Input dataframe
             
-        返回:
-            特征偏度字典
+        Returns:
+            Feature skewness dictionary
         """
         return self.data_analyzer.detect_skewed_features(df)
     
     def suggest_feature_transformations(self, df: pd.DataFrame) -> List[Dict[str, Any]]:
         """
-        基于数据分析建议特征转换
+        Suggest feature transformations based on data analysis
         
-        参数:
-            df: 输入数据帧
+        Parameters:
+            df: Input dataframe
             
-        返回:
-            特征转换建议列表
+        Returns:
+            List of feature transformation suggestions
         """
         return self.data_analyzer.suggest_feature_transformations(df)
     
@@ -330,17 +330,17 @@ class LLMFeaturePipeline:
                                        suggestion_id: str, 
                                        iterations: int = 3) -> Dict[str, Any]:
         """
-        对特征实现进行性能基准测试
+        Perform performance benchmark for feature implementation
         
-        参数:
-            df: 输入数据帧
-            suggestion_id: 建议ID
-            iterations: 执行次数
+        Parameters:
+            df: Input dataframe
+            suggestion_id: Suggestion ID
+            iterations: Number of executions
             
-        返回:
-            基准测试结果
+        Returns:
+            Benchmark test results
         """
-        # 查找对应的建议
+        # Find corresponding suggestion
         suggestion = None
         for s in self.feature_suggestions:
             if s.get("suggestion_id") == suggestion_id:
@@ -349,33 +349,33 @@ class LLMFeaturePipeline:
                 
         if not suggestion:
             if self.verbose:
-                print(f"❌ 找不到ID为{suggestion_id}的建议")
-            return {"status": "error", "message": f"找不到ID为{suggestion_id}的建议"}
+                print(f"❌ Cannot find suggestion with ID {suggestion_id}")
+            return {"status": "error", "message": f"Cannot find suggestion with ID {suggestion_id}"}
         
-        # 提取实现代码
+        # Extract implementation code
         implementation_code = suggestion.get("implementation", "")
         implementation_code = self.code_parser.clean_implementation_code(implementation_code)
         
-        if not implementation_code or implementation_code == "# 需要手动实现":
+        if not implementation_code or implementation_code == "# Needs manual implementation":
             if self.verbose:
-                print("❌ 建议中没有实现代码，无法进行基准测试")
-            return {"status": "error", "message": "建议中没有实现代码"}
+                print("❌ No implementation code in suggestion, cannot perform benchmark test")
+            return {"status": "error", "message": "No implementation code in suggestion"}
         
-        # 确保代码是函数结构
+        # Ensure code is in function structure
         implementation_code = self.code_parser.ensure_function_structure(
             implementation_code, 
             f"feature_{suggestion_id.replace('-', '_').replace('.', '_')}"
         )
         
-        # 执行基准测试
+        # Execute benchmark test
         return self.code_executor.benchmark_execution(df, implementation_code, iterations)
     
     def get_status_summary(self) -> Dict[str, Any]:
         """
-        获取当前状态摘要
+        Get current status summary
         
-        返回:
-            状态摘要字典
+        Returns:
+            Status summary dictionary
         """
         successful_features = [f for f in self.implemented_features.values() if f.get("status") == "success"]
         failed_features = [f for f in self.implemented_features.values() if f.get("status") != "success"]

@@ -1,52 +1,52 @@
 """
-代码提取与清理
+Code Extraction and Cleaning
 """
 import re
 from typing import Optional
 
 class CodeParser:
     """
-    解析LLM响应中的代码内容
+    Parses code content from LLM responses
     """
     
     def __init__(self, verbose: bool = True):
         """
-        初始化代码解析器
+        Initialize code parser
         
-        参数:
-            verbose: 是否打印详细信息
+        Parameters:
+            verbose: Whether to print detailed information
         """
         self.verbose = verbose
     
     def parse_code_from_response(self, response: str) -> str:
         """
-        从LLM回复中提取Python代码，支持嵌套代码块
+        Extract Python code from LLM reply, supporting nested code blocks
         
-        参数:
-            response: LLM回复的内容
+        Parameters:
+            response: Content of the LLM reply
             
-        返回:
-            提取的Python代码
+        Returns:
+            Extracted Python code
         """
-        # 尝试匹配最外层的Python代码块
+        # Try to match the outermost Python code block
         code_pattern = r"```python(.*?)```"
         matches = re.findall(code_pattern, response, re.DOTALL)
         
         if matches:
-            # 清理提取的代码
+            # Clean the extracted code
             extracted_code = matches[0].strip()
             
-            # 检查是否有内部代码块标记，并移除它们
+            # Check for and remove inner code block markers
             extracted_code = re.sub(r'```\w*\n', '', extracted_code)
             extracted_code = extracted_code.replace('\n```', '')
             
             return extracted_code
         
-        # 如果没有Markdown格式，尝试查找可能的Python代码部分
+        # If no Markdown format, try to find possible Python code section
         if "def " in response and "return" in response:
             code_start = response.find("def ")
             
-            # 找到代码块的结束位置
+            # Find the end position of the code block
             code_lines = response[code_start:].split('\n')
             end_line = 0
             indent_level = 0
@@ -60,8 +60,8 @@ class CodeParser:
                     
                 if in_function:
                     if line.strip() and not line.startswith(" " * (indent_level + 4)):
-                        # 缩进减少，可能是函数结束
-                        if i > 2:  # 至少包含函数定义和一行函数体
+                        # Reduced indentation, possibly end of function
+                        if i > 2:  # At least include function definition and one line of function body
                             end_line = i
                             break
             
@@ -75,33 +75,33 @@ class CodeParser:
     
     def clean_implementation_code(self, code: str) -> str:
         """
-        清理实现代码中的Markdown标记和特殊字符
+        Clean implementation code of Markdown markers and special characters
         
-        参数:
-            code: 原始代码
+        Parameters:
+            code: Original code
             
-        返回:
-            清理后的代码
+        Returns:
+            Cleaned code
         """
-        # 移除Markdown代码块标记
+        # Remove Markdown code block markers
         code = re.sub(r'```python\s*', '', code)
         code = re.sub(r'\s*```', '', code)
         
-        # 移除可能的引号转义
+        # Remove possible quote escaping
         code = code.replace('\\"', '"')
         
-        # 移除开头和结尾的空白
+        # Remove leading and trailing whitespace
         return code.strip()
     
     def extract_function_name(self, code: str) -> Optional[str]:
         """
-        从代码中提取函数名
+        Extract function name from code
         
-        参数:
-            code: 代码字符串
+        Parameters:
+            code: Code string
             
-        返回:
-            函数名，如果找不到则返回None
+        Returns:
+            Function name, or None if not found
         """
         match = re.search(r'def\s+(\w+)', code)
         if match:
@@ -110,43 +110,43 @@ class CodeParser:
     
     def ensure_function_structure(self, code: str, function_name: Optional[str] = None) -> str:
         """
-        确保代码是一个函数结构，如果不是则包装它
+        Ensure code is in a function structure, wrapping it if necessary
         
-        参数:
-            code: 原始代码
-            function_name: 指定的函数名，如果为None则自动生成
+        Parameters:
+            code: Original code
+            function_name: Specified function name, auto-generated if None
             
-        返回:
-            确保为函数结构的代码
+        Returns:
+            Code ensured to be in function structure
         """
         if not code.strip():
             return ""
             
-        # 如果已经是函数定义，直接返回
+        # If already a function definition, return directly
         if code.strip().startswith("def "):
             return code
             
-        # 生成函数名
+        # Generate function name
         if not function_name:
             function_name = f"process_feature_{hash(code) % 10000}"
             
-        # 检查代码是否已经包含函数调用
+        # Check if code already contains function call
         if "df = " in code or "return df" in code:
-            # 已经包含处理逻辑，只需要包装成函数
+            # Already contains processing logic, just wrap into function
             wrapped_code = f"def {function_name}(df):\n" + "\n".join(
                 f"    {line}" for line in code.split("\n")
             )
         else:
-            # 可能只是一些操作步骤，需要添加DataFrame处理逻辑
+            # Might be just some operation steps, need to add DataFrame processing logic
             wrapped_code = f"""def {function_name}(df):
     df_result = df.copy()
     
-    # 实现特征工程逻辑
+    # Implement feature engineering logic
     {code.strip()}
     
     return df_result"""
         
-        # 确保有返回语句
+        # Ensure there's a return statement
         if "return" not in wrapped_code:
             wrapped_code = wrapped_code.rstrip() + "\n    return df_result"
             

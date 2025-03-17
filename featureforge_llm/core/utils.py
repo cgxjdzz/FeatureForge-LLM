@@ -1,5 +1,5 @@
 """
-通用工具函数
+Generic Utility Functions
 """
 import json
 import time
@@ -9,16 +9,16 @@ import pandas as pd
 
 def create_provider_instance(provider_name: str, api_key: str, model: str, verbose: bool = True):
     """
-    创建LLM提供者实例
+    Create LLM provider instance
     
-    参数:
-        provider_name: 提供者名称
-        api_key: API密钥
-        model: 模型名称
-        verbose: 是否打印详细信息
+    Parameters:
+        provider_name: Provider name
+        api_key: API key
+        model: Model name
+        verbose: Whether to print detailed information
         
-    返回:
-        LLM提供者实例
+    Returns:
+        LLM provider instance
     """
     provider_name = provider_name.lower()
     
@@ -33,64 +33,64 @@ def create_provider_instance(provider_name: str, api_key: str, model: str, verbo
         provider.setup(api_key, model=model)
         return provider
     else:
-        raise ValueError(f"不支持的提供商: {provider_name}，目前支持 'openai' 或 'gemini'")
+        raise ValueError(f"Unsupported provider: {provider_name}, currently supporting 'openai' or 'gemini'")
 
 def save_suggestions_to_file(suggestions: List[Dict[str, Any]], file_path: str) -> bool:
     """
-    将特征建议保存到文件
+    Save feature suggestions to file
     
-    参数:
-        suggestions: 建议列表
-        file_path: 文件路径
+    Parameters:
+        suggestions: List of suggestions
+        file_path: File path
         
-    返回:
-        是否保存成功
+    Returns:
+        Whether saving was successful
     """
     try:
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(suggestions, f, ensure_ascii=False, indent=2)
         return True
     except Exception as e:
-        print(f"❌ 保存建议到文件失败: {e}")
+        print(f"❌ Failed to save suggestions to file: {e}")
         return False
 
 def load_suggestions_from_file(file_path: str) -> List[Dict[str, Any]]:
     """
-    从文件加载特征建议
+    Load feature suggestions from file
     
-    参数:
-        file_path: 文件路径
+    Parameters:
+        file_path: File path
         
-    返回:
-        建议列表
+    Returns:
+        List of suggestions
     """
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
-        print(f"❌ 从文件加载建议失败: {e}")
+        print(f"❌ Failed to load suggestions from file: {e}")
         return []
 
 def save_implementation_results(results: Dict[str, Any], file_path: str) -> bool:
     """
-    保存实现结果
+    Save implementation results
     
-    参数:
-        results: 实现结果
-        file_path: 文件路径
+    Parameters:
+        results: Implementation results
+        file_path: File path
         
-    返回:
-        是否保存成功
+    Returns:
+        Whether saving was successful
     """
     try:
-        # 确保目录存在
+        # Ensure directory exists
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(results, f, ensure_ascii=False, indent=2)
         return True
     except Exception as e:
-        print(f"❌ 保存实现结果失败: {e}")
+        print(f"❌ Failed to save implementation results: {e}")
         return False
 
 def generate_report(implemented_features: Dict[str, Any], 
@@ -98,26 +98,26 @@ def generate_report(implemented_features: Dict[str, Any],
                    original_df: pd.DataFrame,
                    result_df: pd.DataFrame) -> Dict[str, Any]:
     """
-    生成特征工程报告
+    Generate feature engineering report
     
-    参数:
-        implemented_features: 已实现的特征
-        execution_history: 执行历史
-        original_df: 原始数据帧
-        result_df: 结果数据帧
+    Parameters:
+        implemented_features: Implemented features
+        execution_history: Execution history
+        original_df: Original dataframe
+        result_df: Result dataframe
         
-    返回:
-        报告数据
+    Returns:
+        Report data
     """
-    # 收集基本信息
+    # Collect basic information
     successful_features = [f for f in implemented_features.values() if f.get("status") == "success"]
     failed_features = [f for f in implemented_features.values() if f.get("status") != "success"]
     
-    # 计算统计信息
+    # Calculate statistics
     added_columns = list(set(result_df.columns) - set(original_df.columns))
     removed_columns = list(set(original_df.columns) - set(result_df.columns))
     
-    # 生成报告
+    # Generate report
     report = {
         "timestamp": time.time(),
         "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
@@ -153,20 +153,20 @@ def generate_report(implemented_features: Dict[str, Any],
 
 def format_timedelta(seconds: float) -> str:
     """
-    格式化时间差
+    Format time difference
     
-    参数:
-        seconds: 秒数
+    Parameters:
+        seconds: Number of seconds
         
-    返回:
-        格式化的时间字符串
+    Returns:
+        Formatted time string
     """
     minutes, seconds = divmod(seconds, 60)
     hours, minutes = divmod(minutes, 60)
     
     if hours > 0:
-        return f"{int(hours)}小时 {int(minutes)}分钟 {seconds:.2f}秒"
+        return f"{int(hours)} hours {int(minutes)} minutes {seconds:.2f} seconds"
     elif minutes > 0:
-        return f"{int(minutes)}分钟 {seconds:.2f}秒"
+        return f"{int(minutes)} minutes {seconds:.2f} seconds"
     else:
-        return f"{seconds:.2f}秒"
+        return f"{seconds:.2f} seconds"

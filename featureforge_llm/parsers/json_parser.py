@@ -1,5 +1,5 @@
 """
-JSON解析相关功能
+JSON Parsing Related Functionality
 """
 import re
 import json
@@ -7,77 +7,77 @@ from typing import Dict, List, Any, Union
 
 class JsonParser:
     """
-    解析LLM响应中的JSON内容
+    Parses JSON content from LLM responses
     """
     
     def __init__(self, verbose: bool = True):
         """
-        初始化JSON解析器
+        Initialize JSON parser
         
-        参数:
-            verbose: 是否打印详细信息
+        Parameters:
+            verbose: Whether to print detailed information
         """
         self.verbose = verbose
     
     def parse_json_from_response(self, response: str) -> Union[Dict, List]:
         """
-        从LLM回复中提取JSON内容
+        Extract JSON content from LLM reply
         
-        参数:
-            response: LLM回复的内容
+        Parameters:
+            response: Content of the LLM reply
             
-        返回:
-            提取的JSON内容（字典或列表）
+        Returns:
+            Extracted JSON content (dictionary or list)
         """
         if self.verbose:
-            print("\n==== LLM原始响应 ====")
+            print("\n==== LLM Original Response ====")
             print(response)
             print("=====================\n")
         
-        # 首先尝试直接解析完整响应中的JSON部分
+        # First try to directly parse JSON part in the full response
         try:
-            # 查找最外层的JSON结构
+            # Find the outermost JSON structure
             json_pattern = r"```json(.*?)```"
             matches = re.findall(json_pattern, response, re.DOTALL)
             
             if matches:
-                # 提取JSON字符串并清理
+                # Extract and clean JSON string
                 json_str = matches[0].strip()
                 
-                # 替换内嵌的代码块
+                # Replace embedded code blocks
                 code_pattern = r"```python(.*?)```"
                 json_str = re.sub(code_pattern, lambda m: json.dumps(m.group(1)), json_str)
                 
-                # 标准化换行符和空格
+                # Standardize line breaks and spaces
                 json_str = re.sub(r'[\r\n\t]+', ' ', json_str)
                 json_str = re.sub(r'\s{2,}', ' ', json_str)
                 
-                # 尝试解析
+                # Try to parse
                 try:
                     return json.loads(json_str)
                 except json.JSONDecodeError:
-                    # 尝试使用更严格的解析方式
+                    # Try a more strict parsing method
                     return self._extract_json_array_or_object(json_str)
                     
-            # 尝试从整个文本中提取JSON数组或对象
+            # Try to extract JSON array or object from entire text
             return self._extract_json_array_or_object(response)
         
         except Exception as e:
             if self.verbose:
-                print(f"⚠️ JSON解析失败: {e}")
+                print(f"⚠️ JSON parsing failed: {e}")
             return self._fallback_parse_suggestions(response)
     
     def _extract_json_array_or_object(self, text: str) -> Union[Dict, List]:
         """
-        从文本中提取JSON数组或对象
+        Extract JSON array or object from text
         
-        参数:
-            text: 输入文本
+        Parameters:
+            text: Input text
             
-        返回:
-            提取的JSON内容
+        Returns:
+            Extracted JSON content
         """
-        # 查找JSON数组模式：[...]
+        # Find JSON array pattern: [...]
         array_match = re.search(r'\[\s*\{.*\}\s*\]', text, re.DOTALL)
         if array_match:
             try:
@@ -85,7 +85,7 @@ class JsonParser:
             except json.JSONDecodeError:
                 pass
         
-        # 查找JSON对象模式：{...}
+        # Find JSON object pattern: {...}
         object_match = re.search(r'\{\s*".*"\s*:.*\}', text, re.DOTALL)
         if object_match:
             try:
@@ -93,39 +93,39 @@ class JsonParser:
             except json.JSONDecodeError:
                 pass
         
-        # 如果都失败了，返回空结果
+        # If all fail, return empty result
         return {}
     
     def _fallback_parse_suggestions(self, text: str) -> List[Dict]:
         """
-        作为最后的手段，从文本中提取建议
+        As a last resort, extract suggestions from text
         
-        参数:
-            text: 输入文本
+        Parameters:
+            text: Input text
             
-        返回:
-            提取的建议列表
+        Returns:
+            List of extracted suggestions
         """
         suggestions = []
         
-        # 使用正则表达式从文本中提取单个建议
+        # Use regex to extract individual suggestions
         suggestion_pattern = r'"suggestion_id":\s*"([^"]+)".*?"description":\s*"([^"]+)".*?"rationale":\s*"([^"]+)"'
         matches = re.findall(suggestion_pattern, text, re.DOTALL)
         
         for i, match in enumerate(matches):
             suggestion_id, description, rationale = match
             
-            # 为每个匹配项提取代码实现
+            # Extract implementation for each match
             implementation_pattern = r'"implementation":\s*"(.*?)"'
             impl_match = re.search(implementation_pattern, text[text.find(suggestion_id):], re.DOTALL)
             implementation = impl_match.group(1) if impl_match else ""
             
-            # 提取受影响的列
+            # Extract affected columns
             affected_cols_pattern = r'"affected_columns":\s*\[(.*?)\]'
             cols_match = re.search(affected_cols_pattern, text[text.find(suggestion_id):], re.DOTALL)
             affected_columns = self._parse_string_array(cols_match.group(1)) if cols_match else []
             
-            # 提取新特征
+            # Extract new features
             new_features_pattern = r'"new_features":\s*\[(.*?)\]'
             features_match = re.search(new_features_pattern, text[text.find(suggestion_id):], re.DOTALL)
             new_features = self._parse_string_array(features_match.group(1)) if features_match else []
@@ -143,20 +143,20 @@ class JsonParser:
             suggestions.append(suggestion)
         
         if not suggestions:
-            # 如果上面的方法都失败了，回退到原来的提取方法
+            # If the above method fails, fallback to the original extraction method
             suggestions = self._extract_suggestions_from_text(text)
         
         return suggestions
     
     def _parse_string_array(self, array_str: str) -> List[str]:
         """
-        解析字符串数组
+        Parse string array
         
-        参数:
-            array_str: 数组字符串
+        Parameters:
+            array_str: Array string
             
-        返回:
-            解析的字符串列表
+        Returns:
+            Parsed list of strings
         """
         values = []
         for item in array_str.split(','):
@@ -167,32 +167,32 @@ class JsonParser:
     
     def _extract_suggestions_from_text(self, text: str) -> List[Dict]:
         """
-        从文本回复中提取建议
+        Extract suggestions from text reply
         
-        参数:
-            text: LLM回复文本
+        Parameters:
+            text: LLM reply text
             
-        返回:
-            提取的建议列表
+        Returns:
+            List of extracted suggestions
         """
         if self.verbose:
-            print("\n==== 尝试从文本中提取建议 ====")
-            print(f"文本长度: {len(text)} 字符")
-            print("前500个字符预览:")
+            print("\n==== Attempting to extract suggestions from text ====")
+            print(f"Text length: {len(text)} characters")
+            print("Preview of first 500 characters:")
             print(text[:500] + "..." if len(text) > 500 else text)
             print("============================\n")
             
         suggestions = []
         
-        # 寻找可能的建议部分
+        # Find possible suggestion sections
         suggestion_blocks = re.split(r'\n\d+[\.\)]\s+', text)
         
         if self.verbose:
-            print(f"找到 {len(suggestion_blocks) - 1} 个潜在的建议块")
+            print(f"Found {len(suggestion_blocks) - 1} potential suggestion blocks")
         
-        for i, block in enumerate(suggestion_blocks[1:], 1):  # 跳过第一个可能是介绍的部分
-            if self.verbose and i <= 3:  # 只显示前3个块作为示例
-                print(f"\n== 建议块 #{i} 预览 ==")
+        for i, block in enumerate(suggestion_blocks[1:], 1):  # Skip first block which might be an introduction
+            if self.verbose and i <= 3:  # Only show first 3 blocks as example
+                print(f"\n== Suggestion Block #{i} Preview ==")
                 preview = block[:200] + "..." if len(block) > 200 else block
                 print(preview)
                 print("===================")
@@ -202,17 +202,17 @@ class JsonParser:
             if not lines:
                 continue
                 
-            # 提取建议信息
+            # Extract suggestion information
             title = lines[0].strip()
             description = "\n".join(lines[1:])
             
-            # 提取代码部分（这里假设有CodeParser可用，实际实现时需要导入）
+            # Extract code part (assumes CodeParser is available, actual implementation needs import)
             from ..parsers.code_parser import CodeParser
             code_parser = CodeParser(verbose=self.verbose)
             code = code_parser.parse_code_from_response(block)
             
             if self.verbose and code:
-                print(f"从建议 #{i} 中提取到代码:")
+                print(f"Extracted code from suggestion #{i}:")
                 print(code[:200] + "..." if len(code) > 200 else code)
             
             suggestion = {
@@ -220,7 +220,7 @@ class JsonParser:
                 "suggestion_type": self._guess_suggestion_type(title),
                 "description": title,
                 "rationale": description,
-                "implementation": code if code else "# 需要手动实现",
+                "implementation": code if code else "# Needs manual implementation",
                 "affected_columns": [],
                 "new_features": []
             }
@@ -228,27 +228,27 @@ class JsonParser:
             suggestions.append(suggestion)
         
         if self.verbose:
-            print(f"📝 从文本中提取了{len(suggestions)}个建议")
+            print(f"📝 Extracted {len(suggestions)} suggestions from text")
             
         return suggestions
     
     def _guess_suggestion_type(self, text: str) -> str:
         """
-        根据文本猜测建议类型
+        Guess suggestion type based on text
         
-        参数:
-            text: 建议文本
+        Parameters:
+            text: Suggestion text
             
-        返回:
-            猜测的建议类型
+        Returns:
+            Guessed suggestion type (Transformation|Interaction|Domain Knowledge|Other)
         """
         text = text.lower()
         
-        if any(word in text for word in ["交互", "组合", "乘积", "比率", "interaction"]):
-            return "交互"
-        elif any(word in text for word in ["标准化", "归一化", "编码", "二值化", "transform", "encoding"]):
-            return "转换"
-        elif any(word in text for word in ["领域", "知识", "domain", "knowledge"]):
-            return "领域知识"
+        if any(word in text for word in ["交互", "组合", "乘积", "比率", "interaction", "multiply", "product", "combination"]):
+            return "Interaction"
+        elif any(word in text for word in ["标准化", "归一化", "编码", "二值化", "transform", "encoding", "normalize", "standardize", "binarize"]):
+            return "Transformation"
+        elif any(word in text for word in ["领域", "知识", "domain", "knowledge", "expert", "context", "specific"]):
+            return "Domain Knowledge"
         else:
-            return "其他"
+            return "Other"

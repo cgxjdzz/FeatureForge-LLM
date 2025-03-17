@@ -1,5 +1,5 @@
 """
-解析器模块 - 处理LLM响应和代码解析
+Parser module - handles LLM responses and code parsing
 """
 
 from .json_parser import JsonParser

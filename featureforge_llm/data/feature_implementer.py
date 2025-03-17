@@ -1,5 +1,5 @@
 """
-特征实现器
+Feature Implementer
 """
 import pandas as pd
 import time
@@ -12,17 +12,17 @@ from ..parsers.code_parser import CodeParser
 
 class FeatureImplementer:
     """
-    实现特征工程建议
+    Implement Feature Engineering Suggestions
     """
     
     def __init__(self, llm_provider: LLMProvider, code_executor: CodeExecutor, verbose: bool = True):
         """
-        初始化特征实现器
+        Initialize Feature Implementer
         
-        参数:
-            llm_provider: LLM提供者
-            code_executor: 代码执行器
-            verbose: 是否打印详细信息
+        Parameters:
+            llm_provider: LLM provider
+            code_executor: Code executor
+            verbose: Whether to print detailed information
         """
         self.llm_provider = llm_provider
         self.code_executor = code_executor
@@ -34,56 +34,56 @@ class FeatureImplementer:
     def implement_suggestion(self, df: pd.DataFrame, suggestion: Dict[str, Any], 
                                 keep_original: bool = True) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
-        实现特定的特征工程建议
+        Implement a specific feature engineering suggestion
         
-        参数:
-            df: 输入数据帧
-            suggestion: 特征建议字典
-            keep_original: 是否保留原始特征
+        Parameters:
+            df: Input dataframe
+            suggestion: Feature suggestion dictionary
+            keep_original: Whether to keep original features
             
-        返回:
-            (更新的数据帧, 实现结果信息)
+        Returns:
+            (Updated dataframe, Implementation result information)
         """
         suggestion_id = suggestion.get("suggestion_id")
         if not suggestion_id:
             if self.verbose:
-                print("❌ 建议缺少ID")
-            return df, {"status": "error", "message": "建议缺少ID"}
+                print("❌ Suggestion missing ID")
+            return df, {"status": "error", "message": "Suggestion missing ID"}
             
         if self.verbose:
-            print(f"🔧 正在实现建议: {suggestion.get('description', suggestion_id)}")
+            print(f"🔧 Implementing suggestion: {suggestion.get('description', suggestion_id)}")
         
-        # 如果没有实现代码，使用LLM生成代码
+        # If no implementation code, use LLM to generate code
         implementation_code = suggestion.get("implementation")
-        if not implementation_code or implementation_code == "# 需要手动实现":
+        if not implementation_code or implementation_code == "# Needs manual implementation":
             
-            # 调用生成代码的方法
+            # Call method to generate code
             implementation_code = self.generate_implementation_code(df, suggestion)
             
-            # 更新建议中的实现代码
+            # Update implementation code in suggestion
             suggestion["implementation"] = implementation_code
         
-        # 清理实现代码
+        # Clean implementation code
         implementation_code = self.code_parser.clean_implementation_code(implementation_code)
         
-        # 确保代码是函数结构
+        # Ensure code is in function structure
         implementation_code = self.code_parser.ensure_function_structure(
             implementation_code, 
             f"feature_{suggestion_id.replace('-', '_').replace('.', '_')}"
         )
         
-        # 实现建议
+        # Implement suggestion
         result_df, impl_result = self.code_executor.execute(df, implementation_code, suggestion, keep_original)
         
-        # 如果执行失败，尝试修复代码
+        # If execution fails, try to fix code
         if impl_result["status"] == "error" and self.llm_provider:
             if self.verbose:
-                print("🔄 执行失败，尝试修复代码...")
+                print("🔄 Execution failed, attempting to fix code...")
                 
-            # 获取数据帧信息用于修复代码
+            # Get dataframe info for code fixing
             df_info = self.data_analyzer.get_dataframe_info(df)
             
-            # 修复代码
+            # Fix code
             fixed_code = self.code_executor.fix_code(
                 implementation_code, 
                 impl_result["error"], 
@@ -93,104 +93,104 @@ class FeatureImplementer:
             
             if fixed_code != implementation_code:
                 if self.verbose:
-                    print("🔧 使用修复后的代码重新尝试...")
+                    print("🔧 Retrying with fixed code...")
                     
-                # 使用修复后的代码重新尝试
+                # Retry with fixed code
                 result_df, impl_result = self.code_executor.execute(df, fixed_code, suggestion, keep_original)
                 
-                # 更新建议中的实现代码
+                # Update implementation code in suggestion
                 if impl_result["status"] == "success":
                     suggestion["implementation"] = fixed_code
         
-        # 记录实现结果
+        # Record implementation result
         self.implemented_features[suggestion_id] = impl_result
         
         return result_df, impl_result
     
     def generate_implementation_code(self, df: pd.DataFrame, suggestion: Dict[str, Any]) -> str:
         """
-        为建议生成实现代码
+        Generate implementation code for a suggestion
         
-        参数:
-            df: 输入数据帧
-            suggestion: 建议详情
+        Parameters:
+            df: Input dataframe
+            suggestion: Suggestion details
             
-        返回:
-            实现代码
+        Returns:
+            Implementation code
         """
         if not self.llm_provider:
             if self.verbose:
-                print("⚠️ 缺少LLM提供者，无法生成代码")
-            return "# 缺少LLM提供者，无法生成代码\ndef implement_feature(df):\n    return df"
+                print("⚠️ Missing LLM provider, cannot generate code")
+            return "# Missing LLM provider, cannot generate code\ndef implement_feature(df):\n    return df"
         
-        # 获取数据帧信息
+        # Get dataframe information
         df_info = self.data_analyzer.get_dataframe_info(df)
         
-        system_message = """你是一位特征工程专家，能够编写高质量的Python代码来实现特征工程。
-    请提供完整可执行的Python函数，针对输入的DataFrame实现所需的特征工程。
-    代码应该是健壮的，能够处理边缘情况，如缺失值和异常值。"""
+        system_message = """You are a feature engineering expert capable of writing high-quality Python code to implement feature engineering.
+Please provide a complete, executable Python function to implement the required feature engineering for the input DataFrame.
+The code should be robust, able to handle edge cases such as missing values and outliers."""
         
         prompt = f"""
-    请根据以下特征工程建议编写Python实现代码:
+Please write Python implementation code based on the following feature engineering suggestion:
 
-    建议描述: {suggestion.get('description', '')}
-    建议理由: {suggestion.get('rationale', '')}
-    建议类型: {suggestion.get('suggestion_type', '未知')}
-    受影响的列: {suggestion.get('affected_columns', [])}
-    预期新特征: {suggestion.get('new_features', [])}
+Suggestion description: {suggestion.get('description', '')}
+Suggestion rationale: {suggestion.get('rationale', '')}
+Suggestion type: {suggestion.get('suggestion_type', 'Unknown')}
+Affected columns: {suggestion.get('affected_columns', [])}
+Expected new features: {suggestion.get('new_features', [])}
 
-    数据集信息:
-    - 形状: {df_info['shape']}
-    - 列: {df_info['columns']}
-    - 数据类型: {df_info['dtypes']}
-    - 缺失值: {df_info['missing_values']}
-    - 唯一值数量: {df_info['unique_values']}
+Dataset information:
+- Shape: {df_info['shape']}
+- Columns: {df_info['columns']}
+- Data types: {df_info['dtypes']}
+- Missing values: {df_info['missing_values']}
+- Unique value counts: {df_info['unique_values']}
 
-    请编写一个名为`implement_feature`的Python函数，该函数:
-    1. 接受一个pandas DataFrame作为输入
-    2. 实现上述特征工程建议
-    3. 返回包含新特征的DataFrame
+Please write a Python function named `implement_feature` that:
+1. Accepts a pandas DataFrame as input
+2. Implements the above feature engineering suggestion
+3. Returns a DataFrame with new features
 
-    代码应该:
-    - 处理可能的缺失值
-    - 包含适当的注释
-    - 遵循Python最佳实践
-    - 不使用外部数据源
+The code should:
+- Handle potential missing values
+- Include appropriate comments
+- Follow Python best practices
+- Not use external data sources
 
-    要点建议：
-    - 对于特征转换，考虑使用pandas和numpy的内置方法
-    - 对于特征交互，使用列组合或数学运算
-    - 对于领域知识特征，提取有意义的信息
+Key suggestions:
+- For feature transformations, consider using built-in pandas and numpy methods
+- For feature interactions, use column combinations or mathematical operations
+- For domain knowledge features, extract meaningful information
 
-    请仅返回Python代码，不需要解释。
-    """
+Please return only Python code, no explanation needed.
+"""
         
         if self.verbose:
-            print("🔬 正在生成特征实现代码...")
+            print("🔬 Generating feature implementation code...")
         
         response = self.llm_provider.call(prompt, system_message)
         code = self.code_parser.parse_code_from_response(response)
         
         if not code:
-            # 如果没有提取到代码，使用简单的模板
+            # If no code was extracted, use a simple template
             code = f"""def implement_feature(df):
         \"\"\"
-        实现: {suggestion.get('description', '')}
+        Implementation: {suggestion.get('description', '')}
         
-        参数:
-            df: 输入数据帧
+        Parameters:
+            df: Input dataframe
             
-        返回:
-            包含新特征的数据帧
+        Returns:
+            Dataframe with new features
         \"\"\"
-        # 创建数据帧副本以避免修改原始数据
+        # Create a copy of the dataframe to avoid modifying original data
         df_result = df.copy()
         
-        # TODO: 实现特征工程逻辑
-        # 可能的步骤：
-        # 1. 处理缺失值
-        # 2. 创建新特征
-        # 3. 执行必要的转换
+        # TODO: Implement feature engineering logic
+        # Possible steps:
+        # 1. Handle missing values
+        # 2. Create new features
+        # 3. Perform necessary transformations
         
         return df_result
     """
@@ -201,19 +201,19 @@ class FeatureImplementer:
                                 suggestions: List[Dict[str, Any]],
                                 keep_original: bool = True) -> pd.DataFrame:
         """
-        实现所有的特征工程建议
+        Implement all feature engineering suggestions
         
-        参数:
-            df: 输入数据帧
-            suggestions: 建议列表
-            keep_original: 是否保留原始特征
+        Parameters:
+            df: Input dataframe
+            suggestions: List of suggestions
+            keep_original: Whether to keep original features
             
-        返回:
-            包含所有新特征的数据帧
+        Returns:
+            Dataframe containing all new features
         """
         if not suggestions:
             if self.verbose:
-                print("⚠️ 没有可用的特征工程建议")
+                print("⚠️ No feature engineering suggestions available")
             return df
             
         result_df = df.copy()
@@ -226,7 +226,7 @@ class FeatureImplementer:
                 continue
                 
             if self.verbose:
-                print(f"🔍 实现建议 {i+1}/{len(suggestions)}: {suggestion.get('description', '')}")
+                print(f"🔍 Implementing suggestion {i+1}/{len(suggestions)}: {suggestion.get('description', '')}")
                 
             try:
                 result_df, impl_result = self.implement_suggestion(result_df, suggestion, keep_original)
@@ -235,77 +235,77 @@ class FeatureImplementer:
                     successful_count += 1
             except Exception as e:
                 if self.verbose:
-                    print(f"❌ 实现建议 {suggestion_id} 时出现未处理的错误: {e}")
+                    print(f"❌ Unhandled error implementing suggestion {suggestion_id}: {e}")
         
         if self.verbose:
-            print(f"✅ 成功实现 {successful_count}/{len(suggestions)} 个建议")
-            print(f"🆕 新特征总数: {len(result_df.columns) - len(df.columns)}")
+            print(f"✅ Successfully implemented {successful_count}/{len(suggestions)} suggestions")
+            print(f"🆕 Total new features: {len(result_df.columns) - len(df.columns)}")
             
         return result_df
     
     def custom_feature_request(self, df: pd.DataFrame, feature_description: str) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
-        根据自定义描述创建特征
+        Create features based on custom description
         
-        参数:
-            df: 输入数据帧
-            feature_description: 特征描述
+        Parameters:
+            df: Input dataframe
+            feature_description: Feature description
             
-        返回:
-            (更新的数据帧, 实现结果信息)
+        Returns:
+            (Updated dataframe, Implementation result information)
         """
         if not self.llm_provider:
             if self.verbose:
-                print("⚠️ 缺少LLM提供者，无法处理自定义特征请求")
-            return df, {"status": "error", "message": "缺少LLM提供者"}
+                print("⚠️ Missing LLM provider, cannot process custom feature request")
+            return df, {"status": "error", "message": "Missing LLM provider"}
             
         if self.verbose:
-            print(f"🔍 正在处理自定义特征请求: {feature_description}")
+            print(f"🔍 Processing custom feature request: {feature_description}")
             
         df_info = self.data_analyzer.get_dataframe_info(df)
         
-        system_message = """你是一位特征工程专家，能够根据描述创建有价值的特征。
-请提供完整可执行的Python函数，实现所需的特征工程。"""
+        system_message = """You are a feature engineering expert capable of creating valuable features based on descriptions.
+Please provide a complete, executable Python function to implement the required feature engineering."""
 
         prompt = f"""
-请根据以下描述创建新特征:
+Please create new features based on the following description:
 
-特征描述: {feature_description}
+Feature description: {feature_description}
 
-数据集信息:
-- 形状: {df_info['shape']}
-- 列: {df_info['columns']}
-- 数据类型: {df_info['dtypes']}
+Dataset information:
+- Shape: {df_info['shape']}
+- Columns: {df_info['columns']}
+- Data types: {df_info['dtypes']}
 
-请编写一个名为`create_custom_feature`的Python函数，该函数:
-1. 接受一个pandas DataFrame作为输入
-2. 根据上述描述创建新特征
-3. 返回包含新特征的DataFrame
+Please write a Python function named `create_custom_feature` that:
+1. Accepts a pandas DataFrame as input
+2. Creates new features based on the above description
+3. Returns a DataFrame with new features
 
-代码应该:
-- 处理可能的缺失值
-- 包含适当的注释
-- 遵循Python最佳实践
+The code should:
+- Handle potential missing values
+- Include appropriate comments
+- Follow Python best practices
 
-请仅返回Python代码，不需要解释。
+Please return only Python code, no explanation needed.
 """
         
         response = self.llm_provider.call(prompt, system_message)
         implementation_code = self.code_parser.parse_code_from_response(response)
         
-        # 生成唯一ID
+        # Generate unique ID
         suggestion_id = f"custom_{int(time.time())}"
         
-        # 创建建议对象
+        # Create suggestion object
         suggestion = {
             "suggestion_id": suggestion_id,
-            "suggestion_type": "自定义",
+            "suggestion_type": "Custom",
             "description": feature_description,
-            "rationale": "用户自定义特征",
+            "rationale": "User-defined feature",
             "implementation": implementation_code,
             "affected_columns": [],
             "new_features": []
         }
         
-        # 实现建议
+        # Implement suggestion
         return self.implement_suggestion(df, suggestion)

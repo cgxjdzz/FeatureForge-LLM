@@ -1,5 +1,5 @@
 """
-Gemini LLM提供者实现
+Gemini LLM Provider Implementation
 """
 import time
 from typing import Optional, Dict, Any
@@ -8,15 +8,15 @@ from ..llm.base import LLMProvider
 
 class GeminiProvider(LLMProvider):
     """
-    Google Gemini API的LLM提供者实现
+    LLM Provider implementation for Google Gemini API
     """
     
     def __init__(self, verbose: bool = True):
         """
-        初始化Gemini提供者
+        Initialize Gemini provider
         
-        参数:
-            verbose: 是否打印详细信息
+        Parameters:
+            verbose: Whether to print detailed information
         """
         self.api_key = None
         self.client = None
@@ -25,11 +25,11 @@ class GeminiProvider(LLMProvider):
     
     def setup(self, api_key: str, **kwargs) -> None:
         """
-        设置Gemini API客户端
+        Set up Gemini API client
         
-        参数:
-            api_key: Gemini API密钥
-            **kwargs: 额外参数，如model等
+        Parameters:
+            api_key: Gemini API key
+            **kwargs: Additional parameters, such as model
         """
         try:
             from google import genai
@@ -38,26 +38,26 @@ class GeminiProvider(LLMProvider):
             self._model = kwargs.get('model', 'gemini-pro')
             
             if self.verbose:
-                print("✅ Gemini API客户端设置成功")
+                print("✅ Gemini API client setup successful")
         except ImportError:
-            raise ImportError("请安装google-generativeai库: pip install google-generativeai")
+            raise ImportError("Please install google-generativeai library: pip install google-generativeai")
     
     def call(self, prompt: str, system_message: Optional[str] = None) -> str:
         """
-        调用Gemini API获取回复
+        Call Gemini API to get a response
         
-        参数:
-            prompt: 用户提示
-            system_message: 系统提示
+        Parameters:
+            prompt: User prompt
+            system_message: System prompt
             
-        返回:
-            模型回复的内容
+        Returns:
+            Content of the model's reply
         """
         if not self.client:
-            raise ValueError("请先调用setup方法设置API客户端")
+            raise ValueError("Please call the setup method to set up the API client first")
         
         try:
-            # 构建提示内容
+            # Construct prompt content
             contents = prompt
             
             if system_message:
@@ -78,36 +78,36 @@ class GeminiProvider(LLMProvider):
             
         except Exception as e:
             if self.verbose:
-                print(f"❌ Gemini API调用失败: {e}")
-            time.sleep(2)  # 等待一下再重试
+                print(f"❌ Gemini API call failed: {e}")
+            time.sleep(2)  # Wait a bit before retrying
             
             try:
-                # 简化请求再尝试
+                # Simplify request and try again
                 response = self.client.models.generate_content(
                     model=self._model, 
                     contents=prompt
                 )
                 return response.text
             except Exception as e2:
-                print(f"❌ Gemini API再次调用失败: {e2}")
-                return "Gemini API调用失败，请检查网络连接和API密钥。"
+                print(f"❌ Gemini API call failed again: {e2}")
+                return "Gemini API call failed. Please check network connection and API key."
     
     @property
     def model_name(self) -> str:
         """
-        获取当前使用的模型名称
+        Get the name of the currently used model
         
-        返回:
-            模型名称
+        Returns:
+            Model name
         """
         return self._model
     
     def get_provider_info(self) -> Dict[str, Any]:
         """
-        获取提供者信息
+        Get provider information
         
-        返回:
-            包含提供者信息的字典
+        Returns:
+            Dictionary containing provider information
         """
         return {
             "provider": "gemini",

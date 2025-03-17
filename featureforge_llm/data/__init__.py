@@ -1,5 +1,5 @@
 """
-数据模块 - 数据分析和特征实现
+Data Module - Data Analysis and Feature Implementation
 """
 
 from .data_analyzer import DataAnalyzer

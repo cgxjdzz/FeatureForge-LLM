@@ -1,5 +1,5 @@
 """
-LLM提供者模块 - 大语言模型接口
+LLM provider module - LLM APIS
 """
 
 from .base import LLMProvider

@@ -1,17 +1,16 @@
 """
-LLM特征工程工具包 - 基于大语言模型的自动化特征工程
-
-此包提供了通过LLM实现自动化特征工程的工具，包括特征建议、代码生成和执行。
+LLM Feature Engineering Toolkit - Automated Feature Engineering Based on Large Language Models
+This package provides tools for automated feature engineering using LLMs, including feature suggestion, code generation, and execution.
 """
 
 # 主要导出
 from .core.pipeline import LLMFeaturePipeline
 
 # 版本信息
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 __author__ = "Feifan Zhang"
 __license__ = "MIT"
-__description__ = "基于大语言模型的自动化特征工程工具包"
+__description__ = "Automated Feature Engineering Toolkit Based on Large Language Models"
 
 # 导出子模块API
 from .llm.base import LLMProvider

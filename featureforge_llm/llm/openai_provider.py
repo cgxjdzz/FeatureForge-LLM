@@ -1,5 +1,5 @@
 """
-OpenAI LLM提供者实现
+OpenAI LLM Provider Implementation
 """
 import time
 from typing import Optional, Dict, Any
@@ -8,15 +8,15 @@ from ..llm.base import LLMProvider
 
 class OpenAIProvider(LLMProvider):
     """
-    OpenAI API的LLM提供者实现
+    LLM Provider implementation for OpenAI API
     """
     
     def __init__(self, verbose: bool = True):
         """
-        初始化OpenAI提供者
+        Initialize OpenAI provider
         
-        参数:
-            verbose: 是否打印详细信息
+        Parameters:
+            verbose: Whether to print detailed information
         """
         self.api_key = None
         self.client = None
@@ -25,11 +25,11 @@ class OpenAIProvider(LLMProvider):
     
     def setup(self, api_key: str, **kwargs) -> None:
         """
-        设置OpenAI API客户端
+        Set up OpenAI API client
         
-        参数:
-            api_key: OpenAI API密钥
-            **kwargs: 额外参数，如model等
+        Parameters:
+            api_key: OpenAI API key
+            **kwargs: Additional parameters, such as model
         """
         try:
             import openai
@@ -39,23 +39,23 @@ class OpenAIProvider(LLMProvider):
             self._model = kwargs.get('model', 'gpt-4')
             
             if self.verbose:
-                print("✅ OpenAI API客户端设置成功")
+                print("✅ OpenAI API client setup successful")
         except ImportError:
-            raise ImportError("请安装openai库: pip install openai")
+            raise ImportError("Please install openai library: pip install openai")
     
     def call(self, prompt: str, system_message: Optional[str] = None) -> str:
         """
-        调用OpenAI API获取回复
+        Call OpenAI API to get a response
         
-        参数:
-            prompt: 用户提示
-            system_message: 系统提示
+        Parameters:
+            prompt: User prompt
+            system_message: System prompt
             
-        返回:
-            模型回复的内容
+        Returns:
+            Content of the model's reply
         """
         if not self.client:
-            raise ValueError("请先调用setup方法设置API客户端")
+            raise ValueError("Please call the setup method to set up the API client first")
         
         messages = []
         if system_message:
@@ -71,8 +71,8 @@ class OpenAIProvider(LLMProvider):
             return response.choices[0].message.content
         except Exception as e:
             if self.verbose:
-                print(f"❌ OpenAI API调用失败: {e}")
-            time.sleep(2)  # 等待一下再重试
+                print(f"❌ OpenAI API call failed: {e}")
+            time.sleep(2)  # Wait a bit before retrying
             try:
                 response = self.client.ChatCompletion.create(
                     model=self._model,
@@ -80,25 +80,25 @@ class OpenAIProvider(LLMProvider):
                 )
                 return response.choices[0].message.content
             except Exception as e2:
-                print(f"❌ OpenAI API再次调用失败: {e2}")
-                return "API调用失败，请检查网络连接和API密钥。"
+                print(f"❌ OpenAI API call failed again: {e2}")
+                return "API call failed. Please check network connection and API key."
     
     @property
     def model_name(self) -> str:
         """
-        获取当前使用的模型名称
+        Get the name of the currently used model
         
-        返回:
-            模型名称
+        Returns:
+            Model name
         """
         return self._model
     
     def get_provider_info(self) -> Dict[str, Any]:
         """
-        获取提供者信息
+        Get provider information
         
-        返回:
-            包含提供者信息的字典
+        Returns:
+            Dictionary containing provider information
         """
         return {
             "provider": "openai",

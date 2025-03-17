@@ -1,5 +1,5 @@
 """
-执行器模块 - 安全执行和评估代码
+Executor Module - Safely Execute and Evaluate Code
 """
 
 from .code_executor import CodeExecutor

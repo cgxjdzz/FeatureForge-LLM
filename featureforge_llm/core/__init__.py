@@ -1,5 +1,5 @@
 """
-核心模块 - 包含主要的协调类和工具函数
+Core Module - Contains Main Coordination Classes and Utility Functions
 """
 
 from .pipeline import LLMFeaturePipeline
