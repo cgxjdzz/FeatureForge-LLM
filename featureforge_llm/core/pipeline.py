@@ -51,6 +51,7 @@ class LLMFeaturePipeline:
         self.implemented_features = {}
         self.execution_history = []
         self.start_time = time.time()
+        self.feature_transformations = [] 
     
     def ask_for_feature_suggestions(self, df: pd.DataFrame, 
                                   task_description: str, 
@@ -201,7 +202,8 @@ For each suggestion, please provide the following information in a JSON array fo
         Returns:
             Dataframe containing all new features
         """
-        return self.feature_implementer.implement_all_suggestions(df, self.feature_suggestions, keep_original)
+        df, self.feature_transformations = self.feature_implementer.implement_all_suggestions(df, self.feature_suggestions, keep_original)
+        return df
     
     def custom_feature_request(self, df: pd.DataFrame, feature_description: str) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
@@ -370,21 +372,107 @@ For each suggestion, please provide the following information in a JSON array fo
         # Execute benchmark test
         return self.code_executor.benchmark_execution(df, implementation_code, iterations)
     
-    def get_status_summary(self) -> Dict[str, Any]:
+
+    def apply_saved_transformations(self, new_df: pd.DataFrame) -> pd.DataFrame:
         """
-        Get current status summary
+        Apply the saved feature transformations on a new dataset (e.g., test dataset).
+        
+        Parameters:
+            new_df (pd.DataFrame): The dataset to apply transformations to.
         
         Returns:
-            Status summary dictionary
+            pd.DataFrame: The transformed dataset.
         """
-        successful_features = [f for f in self.implemented_features.values() if f.get("status") == "success"]
-        failed_features = [f for f in self.implemented_features.values() if f.get("status") != "success"]
+        if not self.feature_transformations:
+            if self.verbose:
+                print("⚠️ No saved feature transformations found. Returning original dataset.")
+            return new_df
         
-        return {
-            "total_suggestions": len(self.feature_suggestions),
-            "implemented_count": len(self.implemented_features),
-            "successful_count": len(successful_features),
-            "failed_count": len(failed_features),
-            "execution_time": self.get_execution_time(),
-            "provider": self.llm_provider.get_provider_info() if self.llm_provider else None
+        transformed_df = new_df.copy()
+        
+        for transformation in self.feature_transformations:
+            if transformation["status"] != "success" or not transformation["used_implementation_code"]:
+                if self.verbose:
+                    print(f"⚠️ Skipping transformation {transformation['suggestion_id']} due to error.")
+                continue
+            
+            # Extract the implementation code
+            implementation_code = transformation["used_implementation_code"]
+            
+            # Execute the saved code using CodeExecutor
+            transformed_df, exec_result = self.code_executor.execute(transformed_df, implementation_code)
+            
+            # Handle execution errors
+            if exec_result["status"] != "success":
+                if self.verbose:
+                    print(f"❌ Error applying transformation {transformation['suggestion_id']}: {exec_result['error']}")
+        
+        return transformed_df
+
+
+
+    def get_status_summary(self) -> Dict[str, Any]:
+        """
+        Get a summary of the current pipeline status, including more detailed statistics.
+        
+        Returns:
+            A dictionary containing various statistics about the pipeline execution.
+        """
+        # 1. Basic statistics
+        total_suggestions = len(self.feature_suggestions)  # Total number of feature suggestions
+        implemented_count = len(self.implemented_features)  # Total number of implemented suggestions
+
+        # Separate successful and failed implementations
+        successful_records = [r for r in self.implemented_features.values() if r.get("status") == "success"]
+        failed_records = [r for r in self.implemented_features.values() if r.get("status") != "success"]
+
+        successful_count = len(successful_records)  # Number of successful implementations
+        failed_count = len(failed_records)  # Number of failed implementations
+        unimplemented_count = total_suggestions - implemented_count  # Number of unimplemented suggestions
+
+        # 2. Count the number of new features created from successful implementations
+        total_new_features = 0
+        for record in successful_records:
+            new_feats = record.get("new_features", [])
+            if isinstance(new_feats, list):
+                total_new_features += len(new_feats)
+
+        # 3. Collect error details from failed implementations
+        # Each failed record might have "error_message" and "traceback" information
+        error_details = []
+        for record in failed_records:
+            error_info = {
+                "suggestion_id": record.get("suggestion_id"),
+                "status": record.get("status"),
+                "error_message": record.get("error_message", ""),
+                "traceback": record.get("traceback", "")
+            }
+            error_details.append(error_info)
+
+        # 4. Calculate the total execution time since the pipeline was initialized
+        total_execution_time = self.get_execution_time()
+
+        # 5. Compute the average implementation time per feature implementation
+        history_execution_times = [
+            h.get("execution_time", 0.0) for h in self.execution_history if isinstance(h, dict)
+        ]
+        avg_implementation_time = 0.0
+        if len(history_execution_times) > 0:
+            avg_implementation_time = sum(history_execution_times) / len(history_execution_times)
+
+        # 6. Return a comprehensive status summary
+        summary = {
+            "total_suggestions": total_suggestions,         # Total number of feature suggestions
+            "unimplemented_count": unimplemented_count,     # Number of unimplemented suggestions
+            "implemented_count": implemented_count,         # Number of implemented suggestions
+            "successful_count": successful_count,           # Number of successfully implemented features
+            "failed_count": failed_count,                   # Number of failed implementations
+            "total_new_features_created": total_new_features,  # Total number of new features generated
+            "execution_time": total_execution_time,         # Total execution time since pipeline initialization
+            "avg_implementation_time": avg_implementation_time,  # Average time spent per feature implementation
+            "provider": self.llm_provider.get_provider_info() if self.llm_provider else None,
+            "failed_records": error_details,                # List of failed implementation records
+            "execution_history": self.execution_history     # Full history of feature implementations
         }
+        
+        return summary

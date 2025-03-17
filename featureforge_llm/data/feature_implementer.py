@@ -62,7 +62,8 @@ class FeatureImplementer:
             
             # Update implementation code in suggestion
             suggestion["implementation"] = implementation_code
-        
+            used_implementation_code = implementation_code
+
         # Clean implementation code
         implementation_code = self.code_parser.clean_implementation_code(implementation_code)
         
@@ -74,7 +75,7 @@ class FeatureImplementer:
         
         # Implement suggestion
         result_df, impl_result = self.code_executor.execute(df, implementation_code, suggestion, keep_original)
-        
+        used_implementation_code = implementation_code
         # If execution fails, try to fix code
         if impl_result["status"] == "error" and self.llm_provider:
             if self.verbose:
@@ -101,10 +102,11 @@ class FeatureImplementer:
                 # Update implementation code in suggestion
                 if impl_result["status"] == "success":
                     suggestion["implementation"] = fixed_code
-        
+                    used_implementation_code = fixed_code
         # Record implementation result
         self.implemented_features[suggestion_id] = impl_result
-        
+        impl_result["used_implementation_code"] = used_implementation_code
+
         return result_df, impl_result
     
     def generate_implementation_code(self, df: pd.DataFrame, suggestion: Dict[str, Any]) -> str:
@@ -218,7 +220,8 @@ Please return only Python code, no explanation needed.
             
         result_df = df.copy()
         successful_count = 0
-        
+        execution_details = []
+
         for i, suggestion in enumerate(suggestions):
             suggestion_id = suggestion.get("suggestion_id")
             
@@ -230,18 +233,34 @@ Please return only Python code, no explanation needed.
                 
             try:
                 result_df, impl_result = self.implement_suggestion(result_df, suggestion, keep_original)
-                
+
+                execution_details.append({
+                    "suggestion_id": suggestion_id,
+                    "description": suggestion.get('description', ''),
+                    "status": impl_result.get("status"),
+                    "message": impl_result.get("message", ""),
+                    "used_implementation_code": impl_result.get("used_implementation_code", ""),
+                })
+
                 if impl_result["status"] == "success":
                     successful_count += 1
             except Exception as e:
                 if self.verbose:
                     print(f"❌ Unhandled error implementing suggestion {suggestion_id}: {e}")
-        
+                execution_details.append({
+                    "suggestion_id": suggestion_id,
+                    "description": suggestion.get('description', ''),
+                    "status": "error",
+                    "message": str(e),
+                    "used_implementation_code": "",
+                })
+
+
         if self.verbose:
             print(f"✅ Successfully implemented {successful_count}/{len(suggestions)} suggestions")
             print(f"🆕 Total new features: {len(result_df.columns) - len(df.columns)}")
             
-        return result_df
+        return result_df, execution_details
     
     def custom_feature_request(self, df: pd.DataFrame, feature_description: str) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
