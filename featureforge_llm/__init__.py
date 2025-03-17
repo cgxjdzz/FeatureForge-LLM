@@ -9,7 +9,7 @@ from .core.pipeline import LLMFeaturePipeline
 
 # 版本信息
 __version__ = "0.1.0"
-__author__ = "Your Name"
+__author__ = "Feifan Zhang"
 __license__ = "MIT"
 __description__ = "基于大语言模型的自动化特征工程工具包"
 

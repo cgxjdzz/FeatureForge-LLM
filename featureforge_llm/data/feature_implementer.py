@@ -32,7 +32,7 @@ class FeatureImplementer:
         self.implemented_features = {}
     
     def implement_suggestion(self, df: pd.DataFrame, suggestion: Dict[str, Any], 
-                            keep_original: bool = True) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+                                keep_original: bool = True) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
         实现特定的特征工程建议
         
@@ -49,22 +49,24 @@ class FeatureImplementer:
             if self.verbose:
                 print("❌ 建议缺少ID")
             return df, {"status": "error", "message": "建议缺少ID"}
-        
+            
         if self.verbose:
             print(f"🔧 正在实现建议: {suggestion.get('description', suggestion_id)}")
         
-        # 提取实现代码并清理
-        implementation_code = suggestion.get("implementation", "")
+        # 如果没有实现代码，使用LLM生成代码
+        implementation_code = suggestion.get("implementation")
+        if not implementation_code or implementation_code == "# 需要手动实现":
+            
+            # 调用生成代码的方法
+            implementation_code = self.generate_implementation_code(df, suggestion)
+            
+            # 更新建议中的实现代码
+            suggestion["implementation"] = implementation_code
+        
+        # 清理实现代码
         implementation_code = self.code_parser.clean_implementation_code(implementation_code)
         
-        # 如果没有实现代码，请求LLM生成
-        if not implementation_code or implementation_code == "# 需要手动实现":
-            if self.verbose:
-                print("📝 建议中没有实现代码，正在请求LLM生成...")
-            
-            implementation_code = self.generate_implementation_code(df, suggestion)
-        
-        # 确保代码是一个函数结构
+        # 确保代码是函数结构
         implementation_code = self.code_parser.ensure_function_structure(
             implementation_code, 
             f"feature_{suggestion_id.replace('-', '_').replace('.', '_')}"
@@ -125,36 +127,46 @@ class FeatureImplementer:
         df_info = self.data_analyzer.get_dataframe_info(df)
         
         system_message = """你是一位特征工程专家，能够编写高质量的Python代码来实现特征工程。
-请提供完整可执行的Python函数，针对输入的DataFrame实现所需的特征工程。
-代码应该是健壮的，能够处理边缘情况，如缺失值和异常值。"""
+    请提供完整可执行的Python函数，针对输入的DataFrame实现所需的特征工程。
+    代码应该是健壮的，能够处理边缘情况，如缺失值和异常值。"""
         
         prompt = f"""
-请为以下特征工程建议编写Python实现代码:
+    请根据以下特征工程建议编写Python实现代码:
 
-建议描述: {suggestion.get('description', '')}
-建议理由: {suggestion.get('rationale', '')}
-建议类型: {suggestion.get('suggestion_type', '未知')}
-受影响的列: {suggestion.get('affected_columns', [])}
-预期新特征: {suggestion.get('new_features', [])}
+    建议描述: {suggestion.get('description', '')}
+    建议理由: {suggestion.get('rationale', '')}
+    建议类型: {suggestion.get('suggestion_type', '未知')}
+    受影响的列: {suggestion.get('affected_columns', [])}
+    预期新特征: {suggestion.get('new_features', [])}
 
-数据集信息:
-- 形状: {df_info['shape']}
-- 列: {df_info['columns']}
-- 数据类型: {df_info['dtypes']}
+    数据集信息:
+    - 形状: {df_info['shape']}
+    - 列: {df_info['columns']}
+    - 数据类型: {df_info['dtypes']}
+    - 缺失值: {df_info['missing_values']}
+    - 唯一值数量: {df_info['unique_values']}
 
-请编写一个名为`implement_feature`的Python函数，该函数:
-1. 接受一个pandas DataFrame作为输入
-2. 实现上述特征工程建议
-3. 返回包含新特征的DataFrame
+    请编写一个名为`implement_feature`的Python函数，该函数:
+    1. 接受一个pandas DataFrame作为输入
+    2. 实现上述特征工程建议
+    3. 返回包含新特征的DataFrame
 
-代码应该:
-- 处理可能的缺失值
-- 包含适当的注释
-- 遵循Python最佳实践
-- 不使用外部数据源
+    代码应该:
+    - 处理可能的缺失值
+    - 包含适当的注释
+    - 遵循Python最佳实践
+    - 不使用外部数据源
 
-请仅返回Python代码，不需要解释。
-"""
+    要点建议：
+    - 对于特征转换，考虑使用pandas和numpy的内置方法
+    - 对于特征交互，使用列组合或数学运算
+    - 对于领域知识特征，提取有意义的信息
+
+    请仅返回Python代码，不需要解释。
+    """
+        
+        if self.verbose:
+            print("🔬 正在生成特征实现代码...")
         
         response = self.llm_provider.call(prompt, system_message)
         code = self.code_parser.parse_code_from_response(response)
@@ -162,21 +174,26 @@ class FeatureImplementer:
         if not code:
             # 如果没有提取到代码，使用简单的模板
             code = f"""def implement_feature(df):
-    \"\"\"
-    实现: {suggestion.get('description', '')}
-    
-    参数:
-        df: 输入数据帧
+        \"\"\"
+        实现: {suggestion.get('description', '')}
         
-    返回:
-        包含新特征的数据帧
-    \"\"\"
-    df_result = df.copy()
-    
-    # TODO: 实现特征工程逻辑
-    
-    return df_result
-"""
+        参数:
+            df: 输入数据帧
+            
+        返回:
+            包含新特征的数据帧
+        \"\"\"
+        # 创建数据帧副本以避免修改原始数据
+        df_result = df.copy()
+        
+        # TODO: 实现特征工程逻辑
+        # 可能的步骤：
+        # 1. 处理缺失值
+        # 2. 创建新特征
+        # 3. 执行必要的转换
+        
+        return df_result
+    """
         
         return code
     

@@ -80,7 +80,7 @@ class LLMFeaturePipeline:
         data_sample = df.head(3).to_dict() if df.shape[0] > 0 else {}
         
         system_message = """你是一位专业的特征工程专家，擅长发现数据中的模式和创建有价值的特征。
-请提供具体、可执行的特征工程建议，每个建议都应包含详细的实现方式。以JSON格式回复。"""
+请提供具体、可执行的特征工程建议。以JSON格式回复。"""
         
         if custom_prompt:
             prompt = custom_prompt
@@ -127,7 +127,6 @@ class LLMFeaturePipeline:
     "suggestion_type": "转换|交互|领域知识|其他",
     "description": "详细的建议描述",
     "rationale": "为什么这个特征可能有价值",
-    "implementation": "Python代码实现（可作为一个函数）",
     "affected_columns": ["受影响的列"],
     "new_features": ["新生成的特征名称"]
   }},
