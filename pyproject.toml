@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "featureforge-llm"
+version = "1.0.0"
+description = "Automated Feature Engineering Toolkit Based on Large Language Models"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Feifan Zhang", email = "cgxjdzz@gmail.com" }
+]
+keywords = ["feature engineering", "LLM", "machine learning", "AI", "automation"]
+
+dependencies = [
+    "numpy>=2.2.4",
+    "pandas>=2.2.3",
+    "pydantic>=2.11.0b1",
+    "pydantic_core>=2.31.1",
+    "requests>=2.32.3",
+    "httpx>=0.28.1",
+    "openai>=1.66.3",
+    "google-auth>=2.38.0",
+    "google-genai>=1.5.0",
+    "tqdm>=4.67.1"
+]
+
+
+
+[project.urls]
+Homepage = "https://github.com/cgxjdzz/FeatureForge-LLM"
+Repository = "https://github.com/cgxjdzz/FeatureForge-LLM"
+Issues = "https://github.com/cgxjdzz/FeatureForge-LLM/issues"
